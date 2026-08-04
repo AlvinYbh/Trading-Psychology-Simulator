@@ -1,23 +1,22 @@
-```markdown
-# Interactive Map & AI Question Generator 🌍🤖
+# Trading Psychology & Behavioral Finance Dashboard 🧠📊
 
-> A dynamic, interactive mapping dashboard integrated with Artificial Intelligence to generate contextual questions and insights.
+> An interactive data-driven tool designed to analyze behavioral biases, risk management, and emotional discipline in trading.
 
-🌙 **Note:** For the best visual experience, please set your browser or system to **Dark Mode**.
+🌙 **Note:** For the best visual experience of the interactive charts, please set your browser or system to **Dark Mode**.
 
 ## 📖 Project Overview
-This application merges geospatial data visualization with AI capabilities. The user can interact with a live map, explore specific data points or regions, and dynamically generate AI-driven questions and insights based on the selected geographical context. It is designed to be an educational and exploratory tool.
+While quantitative models focus on price action and technical indicators, this project explores the human element of trading. This dashboard acts as an advanced trading journal and behavioral analyzer. It helps identify emotional decision-making patterns, risk-of-ruin metrics, and the psychological friction that affects a trader's long-term mathematical expectancy.
 
 ## ⚙️ How to Run the Code Locally
 
-You don't need advanced technical skills to run this application. Just follow these steps:
+Follow these steps to launch the interactive dashboard on your machine:
 
 ### Prerequisites
-Make sure you have **Python** installed on your system. 
+You need **Python** installed on your system. 
 
 ### Step-by-step Installation
-1. **Download the project**: Clone this GitHub repository or download the source files.
-2. **Open your terminal**: Navigate to the project's root directory.
-3. **Install the dependencies**: This project uses Streamlit for the interface and Plotly for the interactive map. Run the following command in your terminal:
+1. **Download the project**: Clone this repository to your local machine or download the source files.
+2. **Open your terminal**: Navigate to the folder containing the project files.
+3. **Install the dependencies**: The application uses Streamlit for the interface and data manipulation libraries. Install them by running:
    ```bash
-   pip install streamlit pandas plotly
+   pip install streamlit pandas numpy plotly
