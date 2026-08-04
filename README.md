@@ -1,17 +1,31 @@
-# Trading Psychology & Behavioral Backtest Simulator
+---
 
-Interactive web application built with Streamlit designed to protect vulnerable individuals from financial scams by evaluating how real-world psychological triggers and behavioral discipline impact long-term trading profitability.
+### 2. Le `README.md` pour ta Carte Interactive & IA (Fichier `App.py`)
 
-## Features
-- **Mission & Disclaimer:** Highlights the real-world impact of trading decisions on families and communities, with future research goals including machine learning behavioral modeling.
-- **Interactive Jurisdiction Map:** World map built with Folium to select countries and check capital gains tax impacts.
-- **Behavioral Assessment:** Dynamic questionnaire tracking timeframes, risk tolerance, and emotional triggers (e.g., handling winning streaks).
-- **Regime-Based Analytics:** Generates per-trade returns and inflation-adjusted capital trajectories for SMA/EMA strategies (20/50 and 50/200).
-- **AI Feedback Generation:** Translates complex metrics into straightforward behavioral diagnostics.
+*Copie tout ce qui se trouve dans l'encadré ci-dessous et colle-le dans le `README.md` de ton projet de carte interactive.*
 
-## Requirements
-Install dependencies using:
-```bash
-pip install -r requirements.txt
+```markdown
+# Interactive Map & AI Question Generator 🌍🤖
 
-streamlit run "App.py"
+> A dynamic, interactive mapping dashboard integrated with Artificial Intelligence to generate contextual questions and insights.
+
+🌙 **Note:** For the best visual experience, please set your browser or system to **Dark Mode**.
+
+## 📖 Project Overview
+This application merges geospatial data visualization with AI capabilities. The user can interact with a live map, explore specific data points or regions, and dynamically generate AI-driven questions and insights based on the selected geographical context. It is designed to be an educational and exploratory tool.
+
+## ⚙️ How to Run the Code Locally
+
+You don't need advanced technical skills to run this application. Just follow these steps:
+
+### Prerequisites
+Make sure you have **Python** installed on your system. 
+
+### Step-by-step Installation
+1. **Download the project**: Clone this GitHub repository or download the source files.
+2. **Open your terminal**: Navigate to the project's root directory.
+3. **Install the dependencies**: This project uses Streamlit for the interface and Plotly for the interactive map. Run the following command in your terminal:
+   ```bash
+   pip install streamlit pandas plotly
+
+  streamlit run "App.py"
