@@ -18,6 +18,7 @@ You need **Python** installed on your system.
 1. **Download the project**: Clone this repository to your local machine or download the source files.
 2. **Open your terminal**: Navigate to the folder containing the project files.
 3. **Install the dependencies**: The application uses Streamlit for the interface and data manipulation libraries. Install them by running:
+   
    ```bash
    pip install streamlit pandas numpy plotly
 
