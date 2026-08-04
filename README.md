@@ -1,5 +1,3 @@
----
-
 ### 2. Le `README.md` pour ta Carte Interactive & IA (Fichier `App.py`)
 
 *Copie tout ce qui se trouve dans l'encadré ci-dessous et colle-le dans le `README.md` de ton projet de carte interactive.*
@@ -27,5 +25,3 @@ Make sure you have **Python** installed on your system.
 3. **Install the dependencies**: This project uses Streamlit for the interface and Plotly for the interactive map. Run the following command in your terminal:
    ```bash
    pip install streamlit pandas plotly
-
-  streamlit run "App.py"
