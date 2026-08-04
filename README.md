@@ -20,3 +20,5 @@ You need **Python** installed on your system.
 3. **Install the dependencies**: The application uses Streamlit for the interface and data manipulation libraries. Install them by running:
    ```bash
    pip install streamlit pandas numpy plotly
+
+   streamlit run "App.py"
