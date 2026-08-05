@@ -1,9 +1,3 @@
-# requirements.txt
-# streamlit>=1.35.0
-# pandas
-# numpy
-# plotly
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -11,7 +5,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import random
 
-# --- PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="Pro Quantitative & Behavioral Simulator",
     page_icon="🦅",
@@ -19,7 +12,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CUSTOM CSS (DARK PREMIUM THEME) ---
 st.markdown("""
 <style>
     .stApp { background-color: #0b0f19; color: #e2e8f0; }
@@ -38,7 +30,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- TAX DATA ---
 TAX_DATA = pd.DataFrame([
     {"iso_alpha": "USA", "country": "United States", "region": "North America", "tax_rate": 20.0},
     {"iso_alpha": "CAN", "country": "Canada", "region": "North America", "tax_rate": 25.0},
@@ -54,7 +45,6 @@ TAX_DATA = pd.DataFrame([
     {"iso_alpha": "ZAF", "country": "South Africa", "region": "Africa", "tax_rate": 18.0}
 ])
 
-# --- SESSION STATE INITIALIZATION ---
 if 'step' not in st.session_state:
     st.session_state.step = 1
 if 'responses' not in st.session_state:
@@ -69,9 +59,6 @@ def prev_step(): st.session_state.step -= 1
 
 st.progress(st.session_state.step / 5)
 
-# ==============================================================================
-# STEP 1: INTRODUCTION
-# ==============================================================================
 if st.session_state.step == 1:
     st.title("🛡️ Institutional Trading & Behavioral Simulator")
 
@@ -79,14 +66,11 @@ if st.session_state.step == 1:
     <div class="ui-card">
         <h3 style="color: #60a5fa;">Mission & Reality Check</h3>
         <p>This simulator is built to shatter the "fairy tale" illusions of trading. Financial ruin impacts not just the trader, but their entire family and community.</p>
-        <p>You will face realistic market mechanics: <strong>0.1% fees, slippage, and brutal weekend market gaps that destroy Stop Losses.</strong> Before risking real capital, discover if your psychology can survive.</p>
+        <p>You will face realistic market mechanics: <strong>0.1% fees, slippage, and brutal weekend market gaps that destroy Stop Losses.</strong> Before risking real capital, discover if your psychology can survive. Future Outlook: This framework is part of an ongoing independent research initiative, with upcoming upgrades integrating advanced university-level quantitative models and an integration of a trained AI.</p>
     </div>
     """, unsafe_allow_html=True)
     st.button("I understand the risks. Proceed ➔", on_click=next_step)
 
-# ==============================================================================
-# STEP 2: INTERACTIVE MAP (JURISDICTION)
-# ==============================================================================
 elif st.session_state.step == 2:
     st.title("🌍 Step 1: Select Your Jurisdiction")
     st.write("Click directly on your country/continent on the map to set your Capital Gains Tax rate.")
@@ -103,12 +87,10 @@ elif st.session_state.step == 2:
         fig_map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0}, paper_bgcolor="rgba(0,0,0,0)",
                               plot_bgcolor="rgba(0,0,0,0)", coloraxis_showscale=False)
 
-        # Clickable Map Feature (Streamlit 1.35+)
         event = st.plotly_chart(fig_map, on_select="rerun", selection_mode="points", use_container_width=True)
 
     with col2:
         st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-        # Fallback / Display logic
         selected_country = "United States"
         if event and event.selection.points:
             selected_idx = event.selection.points[0]["point_index"]
@@ -130,10 +112,6 @@ elif st.session_state.step == 2:
         st.button("⬅️ Back", on_click=prev_step)
     with col_b2:
         st.button("Proceed to Financials ➔", on_click=next_step)
-
-# ==============================================================================
-# STEP 3: FINANCIAL PARAMETERS
-# ==============================================================================
 elif st.session_state.step == 3:
     st.title("💰 Step 2: Capital & Taxation Logistics")
     st.write("Set your capital injection and tax withdrawal schedule for the 1-year simulation.")
@@ -160,9 +138,6 @@ elif st.session_state.step == 3:
     with col_b2:
         st.button("Proceed to Assessment ➔", on_click=next_step)
 
-# ==============================================================================
-# STEP 4: 21-QUESTION BEHAVIORAL ASSESSMENT
-# ==============================================================================
 elif st.session_state.step == 4:
     st.title("🧠 Step 3: Deep Behavioral Assessment")
     st.write(
@@ -258,17 +233,12 @@ elif st.session_state.step == 4:
     with col_b2:
         st.button("Run Year-Long Simulation ➔", on_click=next_step)
 
-# ==============================================================================
-# STEP 5: RESULTS & SIMULATION DASHBOARD
-# ==============================================================================
 elif st.session_state.step == 4 + 1:
     st.title("📊 Step 4: Post-Simulation Quantitative Dashboard")
 
     resp = st.session_state.responses
 
-    # --- SCORING ALGORITHM ---
     score = 100
-    # Punish bad habits severely
     if "Accept the -5%" not in resp['q6']: score -= 15
     if "Yes, position sizing" not in resp['q7']: score -= 20
     if "predefined structural point" not in resp['q8']: score -= 10
@@ -282,9 +252,7 @@ elif st.session_state.step == 4 + 1:
     if "False. Capital magnifies" not in resp['q21']: score -= 15
 
     score = max(0, score)
-
-    # --- SIMULATION ENGINE (1 Year, 3 Regimes) ---
-    np.random.seed(42)  # For reproducibility in UI, but logic is dynamic
+    np.random.seed(42) 
     days_in_year = 252
 
     capital = resp['initial_capital']
