@@ -1,4 +1,4 @@
-# Trading Psychology & Behavioral Finance Dashboard 🧠📊
+# Interactive Behavioral Simulation Platform 🧠📊
 
 > An interactive data-driven tool designed to analyze behavioral biases, risk management, and emotional discipline in trading.
 
