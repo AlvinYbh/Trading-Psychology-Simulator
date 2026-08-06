@@ -53,8 +53,12 @@ if 'step' not in st.session_state:
 if 'responses' not in st.session_state:
     st.session_state.responses = {}
 
+
 def next_step(): st.session_state.step += 1
+
+
 def prev_step(): st.session_state.step -= 1
+
 
 def run_simulation(resp, score, days_in_year=252):
     initial_capital = resp['initial_capital']
@@ -65,7 +69,7 @@ def run_simulation(resp, score, days_in_year=252):
 
     # Using 2020 as the benchmark year to showcase Bull, Bear, and Volatile regimes
     dates = pd.date_range(start='2020-01-01', periods=days_in_year, freq='B')
-    
+
     total_invested = initial_capital
     current_capital = initial_capital
     base_capital = initial_capital
@@ -96,7 +100,7 @@ def run_simulation(resp, score, days_in_year=252):
             regime_mod = 1.2
         elif day < 168:
             # Bear Market (May - August)
-            regime_mod = 0.55 
+            regime_mod = 0.55
         else:
             # Volatile / Choppy Market (Sept - Dec)
             regime_mod = 0.85
@@ -131,7 +135,7 @@ def run_simulation(resp, score, days_in_year=252):
 
         plot_dates.append(current_date)
         plot_caps_nominal.append(current_capital)
-        
+
         # Monthly Zoom Logic: Resets to injected amount at the start of each month
         zoom_value = (current_capital - month_start_capital) + monthly_injection
         plot_caps_monthly_zoom.append(zoom_value)
@@ -176,27 +180,28 @@ def run_simulation(resp, score, days_in_year=252):
     final_before_tax = final_after_tax + total_taxes_paid
 
     df = pd.DataFrame({
-        'Date': plot_dates, 
+        'Date': plot_dates,
         'Nominal_Capital': plot_caps_nominal,
         'Monthly_Zoom': plot_caps_monthly_zoom
     })
     df.set_index('Date', inplace=True)
 
     inflation_rate = 0.03
-    
+
     valid_dates_mask = df['Nominal_Capital'].notna()
     days_elapsed = (df.index.to_series()[valid_dates_mask] - df.index[0]).dt.days
     discount_factors = (1 + inflation_rate) ** (days_elapsed / 365.25)
-    
+
     df['Real_Capital'] = np.nan
     df.loc[valid_dates_mask, 'Real_Capital'] = df.loc[valid_dates_mask, 'Nominal_Capital'] / discount_factors.values
 
     yearly_profits = final_before_tax - total_invested
-    
+
     # Store regime transition dates for the graph
     regime_dates = [dates[0], dates[83], dates[167], dates[-1]]
 
     return df, month_boundaries, regime_dates, total_invested, final_before_tax, final_after_tax, total_taxes_paid, max_loss_pct, wins, total_trades, yearly_profits
+
 
 st.progress(st.session_state.step / 5)
 
@@ -253,14 +258,15 @@ elif st.session_state.step == 2:
         st.button("⬅️ Back", on_click=prev_step)
     with col_b2:
         st.button("Proceed to Financials ➔", on_click=next_step)
-        
+
 elif st.session_state.step == 3:
     st.title("💰 Step 2: Capital & Taxation Logistics")
     st.write("Set your capital injection and tax withdrawal schedule for the 1-year simulation.")
 
     st.markdown('<div class="ui-card">', unsafe_allow_html=True)
 
-    st.session_state.responses['initial_capital'] = st.number_input("Starting Capital ($)", min_value=100, value=10000, step=1000)
+    st.session_state.responses['initial_capital'] = st.number_input("Starting Capital ($)", min_value=100, value=10000,
+                                                                    step=1000)
 
     tax_freq = st.radio(
         "When do you declare and withdraw money for taxes/living?",
@@ -294,7 +300,8 @@ elif st.session_state.step == 3:
 
 elif st.session_state.step == 4:
     st.title("🧠 Step 3: Deep Behavioral Assessment")
-    st.write("Be completely honest. The AI will cross-reference your answers to simulate your real win rate and drawdown.")
+    st.write(
+        "Be completely honest. The AI will cross-reference your answers to simulate your real win rate and drawdown.")
 
     with st.container():
         st.subheader("Part 1: Strategy & Logistics")
@@ -403,14 +410,15 @@ elif st.session_state.step == 4 + 1:
     if "gamble" in resp['q18']: score -= 20
     if "False. Capital magnifies" not in resp['q21']: score -= 15
     score = max(0, score)
-    
-    df, month_boundaries, regime_dates, total_invested, final_before_tax, final_after_tax, total_taxes_paid, max_loss_pct, wins, total_trades, yearly_profits = run_simulation(resp, score)
+
+    df, month_boundaries, regime_dates, total_invested, final_before_tax, final_after_tax, total_taxes_paid, max_loss_pct, wins, total_trades, yearly_profits = run_simulation(
+        resp, score)
 
     st.markdown('<div class="ui-card">', unsafe_allow_html=True)
     col_g1, col_g2 = st.columns(2)
     with col_g1:
         graph_view = st.selectbox(
-            "Graph View Style:", 
+            "Graph View Style:",
             ["Cumulative (Full Year Trajectory)", "Monthly Zoom (Resets to injection amount)"]
         )
     with col_g2:
@@ -435,9 +443,12 @@ elif st.session_state.step == 4 + 1:
         fig.update_layout(title="1-Year Cumulative Capital Trajectory (Benchmark: 2020 Market Regimes)")
 
     # Adding Market Regimes Visual Segmentation
-    fig.add_vrect(x0=regime_dates[0], x1=regime_dates[1], fillcolor="green", opacity=0.1, layer="below", line_width=0, annotation_text="Bull Market", annotation_position="top left", annotation_font_color="green")
-    fig.add_vrect(x0=regime_dates[1], x1=regime_dates[2], fillcolor="red", opacity=0.1, layer="below", line_width=0, annotation_text="Bear Market", annotation_position="top left", annotation_font_color="red")
-    fig.add_vrect(x0=regime_dates[2], x1=regime_dates[3], fillcolor="orange", opacity=0.1, layer="below", line_width=0, annotation_text="Volatile / Chop", annotation_position="top left", annotation_font_color="orange")
+    fig.add_vrect(x0=regime_dates[0], x1=regime_dates[1], fillcolor="green", opacity=0.1, layer="below", line_width=0,
+                  annotation_text="Bull Market", annotation_position="top left", annotation_font_color="green")
+    fig.add_vrect(x0=regime_dates[1], x1=regime_dates[2], fillcolor="red", opacity=0.1, layer="below", line_width=0,
+                  annotation_text="Bear Market", annotation_position="top left", annotation_font_color="red")
+    fig.add_vrect(x0=regime_dates[2], x1=regime_dates[3], fillcolor="orange", opacity=0.1, layer="below", line_width=0,
+                  annotation_text="Volatile / Chop", annotation_position="top left", annotation_font_color="orange")
 
     for boundary in month_boundaries:
         fig.add_vline(x=boundary, line_dash="dash", line_color="rgba(255,255,255,0.15)", line_width=1)
@@ -454,40 +465,46 @@ elif st.session_state.step == 4 + 1:
     if capital_view == "Total Invested Amount":
         col1, col2, col3 = st.columns(3)
         col2.metric(capital_view, f"${total_invested:,.2f}")
-        
+
     elif capital_view == "Final Capital (Before Taxes)":
         col1, col2 = st.columns(2)
         col1.metric(capital_view, f"${final_before_tax:,.2f}")
         col2.metric("Largest Loss", f"{max_loss_pct:.2f}%")
-        
+
     elif capital_view == "Final Capital (After Taxes)":
         col1, col2, col3 = st.columns(3)
         col1.metric(capital_view, f"${final_after_tax:,.2f}")
-        
+
         if total_taxes_paid > 0:
             col2.metric("Taxes Deducted", f"${total_taxes_paid:,.2f}")
         else:
             col2.metric("Taxes Deducted", "Not applied (No profit)")
-            
+
         col3.metric("Largest Loss", f"{max_loss_pct:.2f}%")
 
     st.markdown('<div class="ui-card">', unsafe_allow_html=True)
     show_metrics = st.selectbox("Display Advanced Trading Metrics?", ["No", "Yes"])
     if show_metrics == "Yes":
         st.markdown("### Simplified Performance Metrics")
-        
+
         win_rate = (wins / total_trades) * 100 if total_trades > 0 else 0
         win_eval = "Good" if win_rate > 50 else "Needs Improvement"
-        
+
         avg_profit = yearly_profits / total_trades if total_trades > 0 else 0
         exp_eval = "Good" if avg_profit > 0 else "Bad"
-        
-        recovery_factor = abs(yearly_profits / (abs(max_loss_pct) * total_invested / 100)) if max_loss_pct != 0 and total_invested > 0 else 0
+
+        recovery_factor = abs(yearly_profits / (
+                    abs(max_loss_pct) * total_invested / 100)) if max_loss_pct != 0 and total_invested > 0 else 0
         rec_eval = "Good" if recovery_factor > 1.5 else "Bad"
-        
-        st.markdown(f'<div class="metric-box"><b>Trade Success Rate:</b> {win_rate:.1f}% ({win_eval})</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-box"><b>Average Expected Profit per Trade:</b> ${avg_profit:.2f} ({exp_eval})</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-box"><b>Ability to Recover Losses:</b> {recovery_factor:.2f} ({rec_eval})</div>', unsafe_allow_html=True)
+
+        st.markdown(f'<div class="metric-box"><b>Trade Success Rate:</b> {win_rate:.1f}% ({win_eval})</div>',
+                    unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="metric-box"><b>Average Expected Profit per Trade:</b> ${avg_profit:.2f} ({exp_eval})</div>',
+            unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="metric-box"><b>Ability to Recover Losses:</b> {recovery_factor:.2f} ({rec_eval})</div>',
+            unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="ai-card">', unsafe_allow_html=True)
