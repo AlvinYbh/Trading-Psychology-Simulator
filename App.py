@@ -27,6 +27,9 @@ st.markdown("""
     }
     h1, h2, h3 { color: #f8fafc; font-weight: 700; }
     .stProgress .st-bo { background-color: #38bdf8; }
+    .metric-box {
+        background-color: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #38bdf8; font-size: 1.1em;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -50,12 +53,150 @@ if 'step' not in st.session_state:
 if 'responses' not in st.session_state:
     st.session_state.responses = {}
 
-
 def next_step(): st.session_state.step += 1
-
-
 def prev_step(): st.session_state.step -= 1
 
+def run_simulation(resp, score, days_in_year=252):
+    initial_capital = resp['initial_capital']
+    monthly_injection = resp['monthly_injection']
+    tax_rate = resp['tax_rate'] / 100
+    tax_frequency = resp['tax_frequency']
+    reset_strategy = resp.get('reset_strategy', 'Compound everything (Carry all profits and losses)')
+
+    # Using 2020 as the benchmark year to showcase Bull, Bear, and Volatile regimes
+    dates = pd.date_range(start='2020-01-01', periods=days_in_year, freq='B')
+    
+    total_invested = initial_capital
+    current_capital = initial_capital
+    base_capital = initial_capital
+    month_start_capital = initial_capital
+    total_taxes_paid = 0.0
+
+    plot_dates = []
+    plot_caps_nominal = []
+    plot_caps_monthly_zoom = []
+    month_boundaries = []
+
+    wins = 0
+    total_trades = 0
+    peak_capital = current_capital
+    max_loss_pct = 0.0
+
+    win_prob_base = 0.55 if score > 75 else (0.45 if score > 45 else 0.35)
+
+    np.random.seed(42)
+    random.seed(42)
+
+    for day in range(days_in_year):
+        current_date = dates[day]
+
+        # 3 Distinct Market Regimes Setup
+        if day < 84:
+            # Bull Market (Jan - April)
+            regime_mod = 1.2
+        elif day < 168:
+            # Bear Market (May - August)
+            regime_mod = 0.55 
+        else:
+            # Volatile / Choppy Market (Sept - Dec)
+            regime_mod = 0.85
+
+        if random.random() < 0.5:
+            total_trades += 1
+            risk_amount = current_capital * 0.01
+            fee = risk_amount * 0.10
+
+            if random.random() < (win_prob_base * regime_mod):
+                wins += 1
+                rr = random.uniform(1.5, 3.0) if score > 60 else random.uniform(0.8, 1.5)
+                profit = (risk_amount * rr) - fee
+                current_capital += profit
+            else:
+                slippage = risk_amount * random.uniform(0.05, 0.15)
+                is_gap = random.random() < 0.10
+
+                if is_gap and score < 80:
+                    gap_multiplier = random.uniform(2.0, 5.0)
+                    loss = (risk_amount * gap_multiplier) + slippage + fee
+                else:
+                    loss = risk_amount + slippage + fee
+
+                current_capital -= loss
+
+        if current_capital > peak_capital:
+            peak_capital = current_capital
+        drawdown = ((peak_capital - current_capital) / peak_capital) * 100
+        if drawdown > max_loss_pct:
+            max_loss_pct = drawdown
+
+        plot_dates.append(current_date)
+        plot_caps_nominal.append(current_capital)
+        
+        # Monthly Zoom Logic: Resets to injected amount at the start of each month
+        zoom_value = (current_capital - month_start_capital) + monthly_injection
+        plot_caps_monthly_zoom.append(zoom_value)
+
+        if (day + 1) % 21 == 0:
+            monthly_profit = current_capital - base_capital
+
+            if "Monthly" in tax_frequency:
+                if monthly_profit > 0:
+                    tax = monthly_profit * tax_rate
+                    total_taxes_paid += tax
+                    current_capital -= tax
+                    monthly_profit -= tax
+
+                if "Strict Reset" in reset_strategy:
+                    if current_capital < base_capital:
+                        total_invested += (base_capital - current_capital)
+                    current_capital = base_capital
+                elif "Withdraw profits only" in reset_strategy:
+                    if current_capital > base_capital:
+                        current_capital = base_capital
+
+            current_capital += monthly_injection
+            total_invested += monthly_injection
+            base_capital = current_capital
+            month_start_capital = current_capital
+
+            if day != days_in_year - 1:
+                plot_dates.append(current_date + pd.Timedelta(hours=12))
+                plot_caps_nominal.append(np.nan)
+                plot_caps_monthly_zoom.append(np.nan)
+                month_boundaries.append(current_date + pd.Timedelta(hours=12))
+
+    if "Annually" in tax_frequency:
+        total_net_profit = current_capital - total_invested
+        if total_net_profit > 0:
+            tax = total_net_profit * tax_rate
+            total_taxes_paid += tax
+            current_capital -= tax
+
+    final_after_tax = current_capital
+    final_before_tax = final_after_tax + total_taxes_paid
+
+    df = pd.DataFrame({
+        'Date': plot_dates, 
+        'Nominal_Capital': plot_caps_nominal,
+        'Monthly_Zoom': plot_caps_monthly_zoom
+    })
+    df.set_index('Date', inplace=True)
+
+    inflation_rate = 0.03
+    
+    valid_dates_mask = df['Nominal_Capital'].notna()
+    days_elapsed = (df.index.to_series()[valid_dates_mask] - df.index[0]).dt.days
+    discount_factors = (1 + inflation_rate) ** (days_elapsed / 365.25)
+    
+    df['Real_Capital'] = np.nan
+    df.loc[valid_dates_mask, 'Real_Capital'] = df.loc[valid_dates_mask, 'Nominal_Capital'] / discount_factors.values
+
+    yearly_profits = final_before_tax - total_invested
+    
+    # Store regime transition dates for the graph
+    regime_dates = [dates[0], dates[83], dates[167], dates[-1]]
+
+    return df, month_boundaries, regime_dates, total_invested, final_before_tax, final_after_tax, total_taxes_paid, max_loss_pct, wins, total_trades, yearly_profits
 
 st.progress(st.session_state.step / 5)
 
@@ -112,20 +253,33 @@ elif st.session_state.step == 2:
         st.button("⬅️ Back", on_click=prev_step)
     with col_b2:
         st.button("Proceed to Financials ➔", on_click=next_step)
+        
 elif st.session_state.step == 3:
     st.title("💰 Step 2: Capital & Taxation Logistics")
     st.write("Set your capital injection and tax withdrawal schedule for the 1-year simulation.")
 
     st.markdown('<div class="ui-card">', unsafe_allow_html=True)
 
-    st.session_state.responses['initial_capital'] = st.number_input("Starting Capital ($)", min_value=100, value=10000,
-                                                                    step=1000)
+    st.session_state.responses['initial_capital'] = st.number_input("Starting Capital ($)", min_value=100, value=10000, step=1000)
 
-    st.session_state.responses['tax_frequency'] = st.radio(
+    tax_freq = st.radio(
         "When do you declare and withdraw money for taxes/living?",
         ["Monthly (Taxes/withdrawals deducted at the end of each month)",
          "Annually (Compound all year, deduct taxes on year-end net profit)"]
     )
+    st.session_state.responses['tax_frequency'] = tax_freq
+
+    if "Monthly" in tax_freq:
+        st.session_state.responses['reset_strategy'] = st.radio(
+            "End of Month Capital Reset Strategy:",
+            [
+                "Strict Reset (Withdraw profits & refill losses to always start at base capital)",
+                "Withdraw profits only (Start at base capital on wins, but carry losses forward)",
+                "Compound everything (Carry all profits and losses, only pay taxes)"
+            ]
+        )
+    else:
+        st.session_state.responses['reset_strategy'] = "Compound everything (Carry all profits and losses)"
 
     st.session_state.responses['monthly_injection'] = st.number_input(
         "Monthly Capital Injection / DCA ($) added to account:", min_value=0, value=0, step=100)
@@ -140,13 +294,12 @@ elif st.session_state.step == 3:
 
 elif st.session_state.step == 4:
     st.title("🧠 Step 3: Deep Behavioral Assessment")
-    st.write(
-        "Be completely honest. The AI will cross-reference your answers to simulate your real win rate and drawdown.")
+    st.write("Be completely honest. The AI will cross-reference your answers to simulate your real win rate and drawdown.")
 
     with st.container():
         st.subheader("Part 1: Strategy & Logistics")
         q1 = st.selectbox("1. Primary MA Strategy:",
-                          ["SMA 20/50", "SMA 50/200", "EMA 20/50", "EMA 50/200", "AAMA Adaptive"])
+                          ["SMA 20/50", "SMA 50/200", "EMA 20/50", "EMA 50/200", "A moving average I created"])
         q2 = st.selectbox("2. Preferred Asset Class:", ["Stocks", "Indices", "Crypto", "Forex"])
         q3 = st.selectbox("3. Trading Days:", ["Monday to Friday only", "Every day including weekends (Crypto)",
                                                "Only 2-3 specific days a week"])
@@ -220,7 +373,6 @@ elif st.session_state.step == 4:
                        ["False. Capital magnifies bad habits.", "True. I could use less leverage.",
                         "True. I just need one big account to make it."])
 
-    # Save responses
     st.session_state.responses.update({
         'q1': q1, 'q2': q2, 'q3': q3, 'q4': q4, 'q5': q5, 'q6': q6, 'q7': q7, 'q8': q8, 'q9': q9, 'q10': q10,
         'q11': q11, 'q12': q12, 'q13': q13, 'q14': q14, 'q15': q15, 'q16': q16, 'q17': q17, 'q18': q18, 'q19': q19,
@@ -250,135 +402,94 @@ elif st.session_state.step == 4 + 1:
     if "No, my broker history" in resp['q16']: score -= 10
     if "gamble" in resp['q18']: score -= 20
     if "False. Capital magnifies" not in resp['q21']: score -= 15
-
     score = max(0, score)
-    np.random.seed(42) 
-    days_in_year = 252
+    
+    df, month_boundaries, regime_dates, total_invested, final_before_tax, final_after_tax, total_taxes_paid, max_loss_pct, wins, total_trades, yearly_profits = run_simulation(resp, score)
 
-    capital = resp['initial_capital']
-    monthly_injection = resp['monthly_injection']
-    tax_rate = resp['tax_rate'] / 100
-    tax_monthly = "Monthly" in resp['tax_frequency']
-
-    portfolio_nominal = [capital]
-    dates = pd.date_range(start='2023-01-01', periods=days_in_year, freq='B')
-
-    total_tax_paid = 0.0
-    monthly_profits = 0.0
-    yearly_profits = 0.0
-
-    # Trader stats
-    win_prob_base = 0.55 if score > 75 else (0.45 if score > 45 else 0.35)
-
-    for i in range(1, days_in_year):
-        # Determine Regime
-        if i < 84:
-            regime, regime_mod = "Bull", 1.2
-        elif i < 168:
-            regime, regime_mod = "Chop", 0.7
-        else:
-            regime, regime_mod = "Bear", 0.9
-
-        # Determine if trade happens today (approx 1 trade every 2 days)
-        if random.random() < 0.5:
-            # Trade happens
-            risk_amount = capital * 0.01  # Strict 1% risk rule
-            fee = risk_amount * 0.10  # 0.1% fee modeled on risk margin
-
-            # Win or Loss?
-            if random.random() < (win_prob_base * regime_mod):
-                # WIN
-                rr = random.uniform(1.5, 3.0) if score > 60 else random.uniform(0.8, 1.5)
-                profit = (risk_amount * rr) - fee
-                capital += profit
-                monthly_profits += profit
-                yearly_profits += profit
-            else:
-                # LOSS (Includes mechanics: slippage & gaps)
-                slippage = risk_amount * random.uniform(0.05, 0.15)
-                # 10% chance of a brutal weekend gap if they trade weekends/swings
-                is_gap = random.random() < 0.10
-
-                if is_gap and score < 80:  # Good traders cut early, bad traders hope
-                    gap_multiplier = random.uniform(2.0, 5.0)  # Gap blows past -2% SL
-                    loss = (risk_amount * gap_multiplier) + slippage + fee
-                else:
-                    loss = risk_amount + slippage + fee
-
-                capital -= loss
-                monthly_profits -= loss
-                yearly_profits -= loss
-
-        # End of Month Logic (Every ~21 trading days)
-        if i % 21 == 0:
-            capital += monthly_injection
-            if tax_monthly and monthly_profits > 0:
-                tax_deduction = monthly_profits * tax_rate
-                capital -= tax_deduction
-                total_tax_paid += tax_deduction
-            monthly_profits = 0.0  # Reset month
-
-        portfolio_nominal.append(capital)
-
-    # End of Year Tax Logic
-    if not tax_monthly and yearly_profits > 0:
-        tax_deduction = yearly_profits * tax_rate
-        capital -= tax_deduction
-        total_tax_paid += tax_deduction
-        portfolio_nominal[-1] = capital  # Update last day
-
-    df = pd.DataFrame({'Date': dates, 'Nominal_Capital': portfolio_nominal})
-    df.set_index('Date', inplace=True)
-
-    # Calculate Real (Inflation-Adjusted) values - Assuming 3% annual inflation
-    inflation_rate = 0.03
-    discount_factors = (1 + inflation_rate) ** (np.arange(days_in_year) / 252)
-    df['Real_Capital'] = df['Nominal_Capital'] / discount_factors
-
-    # --- UI: TOGGLES & CHARTS ---
     st.markdown('<div class="ui-card">', unsafe_allow_html=True)
-    col_t1, col_t2 = st.columns(2)
-    with col_t1:
-        show_inflation = st.checkbox("Apply Inflation Adjustment (Real vs Nominal)", value=True)
-    with col_t2:
-        st.checkbox(f"Taxes Paid Deducted ({tax_rate * 100}% applied)", value=True, disabled=True)
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
+        graph_view = st.selectbox(
+            "Graph View Style:", 
+            ["Cumulative (Full Year Trajectory)", "Monthly Zoom (Resets to injection amount)"]
+        )
+    with col_g2:
+        show_inflation = st.checkbox("Apply Inflation Adjustment (Real vs Nominal curves)", value=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     fig = go.Figure()
 
-    if show_inflation:
-        fig.add_trace(go.Scatter(x=df.index, y=df['Real_Capital'], mode='lines', name='Real Capital (Adjusted)',
-                                 line=dict(color='#10b981', width=3)))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Nominal_Capital'], mode='lines', name='Nominal Capital',
-                                 line=dict(color='#64748b', width=1.5, dash='dot')))
+    if graph_view == "Monthly Zoom (Resets to injection amount)":
+        fig.add_trace(go.Scatter(x=df.index, y=df['Monthly_Zoom'], mode='lines', name='Monthly PnL Movement',
+                                 line=dict(color='#eab308', width=3), connectgaps=False))
+        fig.update_layout(title="Monthly Segmented Trajectory (Volatility Zoom)")
     else:
-        fig.add_trace(go.Scatter(x=df.index, y=df['Nominal_Capital'], mode='lines', name='Nominal Capital',
-                                 line=dict(color='#38bdf8', width=3)))
+        if show_inflation:
+            fig.add_trace(go.Scatter(x=df.index, y=df['Real_Capital'], mode='lines', name='Real Capital (Adjusted)',
+                                     line=dict(color='#10b981', width=3), connectgaps=False))
+            fig.add_trace(go.Scatter(x=df.index, y=df['Nominal_Capital'], mode='lines', name='Nominal Capital',
+                                     line=dict(color='#64748b', width=1.5, dash='dot'), connectgaps=False))
+        else:
+            fig.add_trace(go.Scatter(x=df.index, y=df['Nominal_Capital'], mode='lines', name='Nominal Capital',
+                                     line=dict(color='#38bdf8', width=3), connectgaps=False))
+        fig.update_layout(title="1-Year Cumulative Capital Trajectory (Benchmark: 2020 Market Regimes)")
 
-    # Add Regime Shadings
-    fig.add_vrect(x0=df.index[0], x1=df.index[83], fillcolor='rgba(16, 185, 129, 0.1)', layer="below", line_width=0,
-                  annotation_text="Regime: Bull", annotation_position="top left")
-    fig.add_vrect(x0=df.index[84], x1=df.index[167], fillcolor='rgba(148, 163, 184, 0.1)', layer="below", line_width=0,
-                  annotation_text="Regime: Chop/Range", annotation_position="top left")
-    fig.add_vrect(x0=df.index[168], x1=df.index[-1], fillcolor='rgba(239, 68, 68, 0.1)', layer="below", line_width=0,
-                  annotation_text="Regime: Bear", annotation_position="top left")
+    # Adding Market Regimes Visual Segmentation
+    fig.add_vrect(x0=regime_dates[0], x1=regime_dates[1], fillcolor="green", opacity=0.1, layer="below", line_width=0, annotation_text="Bull Market", annotation_position="top left", annotation_font_color="green")
+    fig.add_vrect(x0=regime_dates[1], x1=regime_dates[2], fillcolor="red", opacity=0.1, layer="below", line_width=0, annotation_text="Bear Market", annotation_position="top left", annotation_font_color="red")
+    fig.add_vrect(x0=regime_dates[2], x1=regime_dates[3], fillcolor="orange", opacity=0.1, layer="below", line_width=0, annotation_text="Volatile / Chop", annotation_position="top left", annotation_font_color="orange")
 
-    fig.update_layout(title="1-Year Capital Trajectory (Simulating Fees, Gaps & Slippage)", template="plotly_dark",
-                      height=450)
+    for boundary in month_boundaries:
+        fig.add_vline(x=boundary, line_dash="dash", line_color="rgba(255,255,255,0.15)", line_width=1)
+
+    fig.update_xaxes(dtick="M1", tickformat="%B", tickangle=0)
+    fig.update_layout(template="plotly_dark", height=450, hovermode="x unified")
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- STATISTICS ---
-    net_profit = capital - resp['initial_capital'] - (monthly_injection * 12)
-    cum_max = df['Nominal_Capital'].cummax()
-    max_dd = ((df['Nominal_Capital'] - cum_max) / cum_max).min() * 100
+    capital_view = st.selectbox(
+        "Select Capital Output View:",
+        ["Total Invested Amount", "Final Capital (Before Taxes)", "Final Capital (After Taxes)"]
+    )
 
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    col_m1.metric("Final Capital", f"${capital:,.2f}")
-    col_m2.metric("Net Profit (from trading)", f"${net_profit:,.2f}")
-    col_m3.metric("Taxes Paid to Gov", f"${total_tax_paid:,.2f}")
-    col_m4.metric("Max Drawdown", f"{max_dd:.2f}%")
+    if capital_view == "Total Invested Amount":
+        col1, col2, col3 = st.columns(3)
+        col2.metric(capital_view, f"${total_invested:,.2f}")
+        
+    elif capital_view == "Final Capital (Before Taxes)":
+        col1, col2 = st.columns(2)
+        col1.metric(capital_view, f"${final_before_tax:,.2f}")
+        col2.metric("Largest Loss", f"{max_loss_pct:.2f}%")
+        
+    elif capital_view == "Final Capital (After Taxes)":
+        col1, col2, col3 = st.columns(3)
+        col1.metric(capital_view, f"${final_after_tax:,.2f}")
+        
+        if total_taxes_paid > 0:
+            col2.metric("Taxes Deducted", f"${total_taxes_paid:,.2f}")
+        else:
+            col2.metric("Taxes Deducted", "Not applied (No profit)")
+            
+        col3.metric("Largest Loss", f"{max_loss_pct:.2f}%")
 
-    # --- AI REPORT ---
+    st.markdown('<div class="ui-card">', unsafe_allow_html=True)
+    show_metrics = st.selectbox("Display Advanced Trading Metrics?", ["No", "Yes"])
+    if show_metrics == "Yes":
+        st.markdown("### Simplified Performance Metrics")
+        
+        win_rate = (wins / total_trades) * 100 if total_trades > 0 else 0
+        win_eval = "Good" if win_rate > 50 else "Needs Improvement"
+        
+        avg_profit = yearly_profits / total_trades if total_trades > 0 else 0
+        exp_eval = "Good" if avg_profit > 0 else "Bad"
+        
+        recovery_factor = abs(yearly_profits / (abs(max_loss_pct) * total_invested / 100)) if max_loss_pct != 0 and total_invested > 0 else 0
+        rec_eval = "Good" if recovery_factor > 1.5 else "Bad"
+        
+        st.markdown(f'<div class="metric-box"><b>Trade Success Rate:</b> {win_rate:.1f}% ({win_eval})</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-box"><b>Average Expected Profit per Trade:</b> ${avg_profit:.2f} ({exp_eval})</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-box"><b>Ability to Recover Losses:</b> {recovery_factor:.2f} ({rec_eval})</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
     st.markdown('<div class="ai-card">', unsafe_allow_html=True)
     st.subheader("🤖 AI Diagnostic & Reality Check")
 
